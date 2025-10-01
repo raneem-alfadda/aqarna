@@ -133,13 +133,20 @@ export default function UsageDashboardPage() {
       : 0;
 
   const totalBreakdown = breakdown.reduce((s, x) => s + x.amount, 0);
+function exportBreakdownCSV() {
+  const rows = [["البند","المبلغ"]];
+  let total = 0;
 
-  function exportBreakdownCSV() {
-    const rows = [["البند","المبلغ"]];
-    breakdownAll.forEach(b => rows.push([b.label, b.amount]));
-    rows.push(["الإجمالي", totalBreakdown]);
-    downloadCSV("usage-breakdown.csv", rows);
-  }
+  breakdownAll.forEach(b => {
+    const amt = Number(b.amount) || 0; // نتأكد إنه رقم
+    rows.push([b.label, amt.toString()]);
+    total += amt;
+  });
+
+  rows.push(["الإجمالي", total.toString()]);
+  downloadCSV("usage-breakdown.csv", rows);
+}
+
 
   function printReport() {
     const html = `

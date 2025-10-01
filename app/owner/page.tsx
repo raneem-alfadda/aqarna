@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Bell,
-  LayoutDashboard,  
+  LayoutDashboard,
   FileText,
   BarChart3,
   AlertTriangle,
@@ -69,7 +69,6 @@ const baseProfile = {
   city: "الرياض",
 };
 
-// ===== baseline time-series =====
 const baseMonthly: MonthlyRow[] = [
   { k: "يناير", charges: 1800, paid: 1800, overdue: 0 },
   { k: "فبراير", charges: 1800, paid: 1800, overdue: 0 },
@@ -99,28 +98,17 @@ const baseInvoices: Invoice[] = [
   { id: "INV-239999", period: "Q1 2025", total: 2220, status: "مدفوع", due: "2025-04-15" },
 ];
 
-// ================== خيارات متدرجة (مدينة ← مبنى ← شقة) ==================
+/* ============== خيارات متدرجة (مدينة ← مبنى ← شقة) ============== */
 type CityKey = "riyadh" | "jeddah";
 
 const FILTER_OPTIONS: Record<
   CityKey,
   { label: string; buildings: Record<string, string[]> }
 > = {
-  riyadh: {
-    label: "الرياض",
-    buildings: {
-      "برج الندى": ["A-12", "A-14"],
-    },
-  },
-  jeddah: {
-    label: "جدة",
-    buildings: {
-      "برج الأعمال": ["B-3", "B-7"],
-    },
-  },
+  riyadh: { label: "الرياض", buildings: { "برج الندى": ["A-12", "A-14"] } },
+  jeddah: { label: "جدة", buildings: { "برج الأعمال": ["B-3", "B-7"] } },
 };
 
-// حزم البيانات لكل اختيار نهائي (مدينة+مبنى+شقة)
 const DATA_BY_SELECTION: Record<
   string,
   {
@@ -129,13 +117,7 @@ const DATA_BY_SELECTION: Record<
     invoices: Invoice[];
   }
 > = {
-  // الرياض — برج الندى — A-12
-  "riyadh|برج الندى|A-12": {
-    allocation: baseAllocation,
-    monthly: baseMonthly,
-    invoices: baseInvoices,
-  },
-  // جدة — برج الأعمال — B-3
+  "riyadh|برج الندى|A-12": { allocation: baseAllocation, monthly: baseMonthly, invoices: baseInvoices },
   "jeddah|برج الأعمال|B-3": {
     allocation: [
       { name: "تشغيل", value: 1200 },
@@ -163,14 +145,12 @@ function slope(values: number[]) {
   const sumY = values.reduce((a, b) => a + b, 0);
   const sumXY = xs.reduce((a, x, i) => a + x * values[i], 0);
   const sumX2 = xs.reduce((a, x) => a + x * x, 0);
-  const m = (n * sumXY - sumX * sumY) / Math.max(1, n * sumX2 - sumX * sumX);
-  return m;
+  return (n * sumXY - sumX * sumY) / Math.max(1, n * sumX2 - sumX * sumX);
 }
 function daysUntil(dateStr: string) {
   const now = new Date();
   const d = new Date(dateStr);
-  const diffMs = d.getTime() - now.getTime();
-  return Math.ceil(diffMs / 86400000);
+  return Math.ceil((d.getTime() - now.getTime()) / 86400000);
 }
 
 /* ================= Page ================= */
@@ -182,7 +162,7 @@ export default function OwnerPage() {
   const [loading, setLoading] = React.useState(true);
   const [tab, setTab] = React.useState<TabKey>("overview");
 
-  // ===== ربط بيانات التسجيل (الاسم وغيره) =====
+  // بيانات التسجيل
   const [profile, setProfile] = React.useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("owner_profile");
@@ -191,28 +171,24 @@ export default function OwnerPage() {
     return baseProfile;
   });
 
-  // ===== فلاتر متدرجة: مدينة ← مبنى ← شقة =====
+  // فلاتر متدرجة
   const [city, setCity] = React.useState<CityKey>("riyadh");
   const firstBuilding = Object.keys(FILTER_OPTIONS[city].buildings)[0];
   const [building, setBuilding] = React.useState<string>(firstBuilding);
-  const [unit, setUnit] = React.useState<string>(
-    FILTER_OPTIONS[city].buildings[firstBuilding][0]
-  );
+  const [unit, setUnit] = React.useState<string>(FILTER_OPTIONS[city].buildings[firstBuilding][0]);
 
   React.useEffect(() => {
-    // لما تتغير المدينة: نبني أول مبنى وأول شقة تلقائيًا
     const b = Object.keys(FILTER_OPTIONS[city].buildings)[0];
     setBuilding(b);
     setUnit(FILTER_OPTIONS[city].buildings[b][0]);
   }, [city]);
 
   React.useEffect(() => {
-    // لما يتغيّر المبنى: نختار أول شقة فيه
     const flats = FILTER_OPTIONS[city].buildings[building] || [];
     if (flats.length) setUnit(flats[0]);
   }, [building, city]);
 
-  // ===== بيانات الداشبورد بناءً على الاختيار =====
+  // بيانات الداشبورد
   const [allocation, setAllocation] = React.useState(baseAllocation);
   const [monthly, setMonthly] = React.useState<MonthlyRow[]>(baseMonthly);
   const [invoices, setInvoices] = React.useState<Invoice[]>(baseInvoices);
@@ -223,18 +199,13 @@ export default function OwnerPage() {
     const t = setTimeout(() => {
       const key = `${city}|${building}|${unit}`;
       const pack =
-        DATA_BY_SELECTION[key] ?? {
-          allocation: baseAllocation,
-          monthly: baseMonthly,
-          invoices: baseInvoices,
-        };
+        DATA_BY_SELECTION[key] ?? { allocation: baseAllocation, monthly: baseMonthly, invoices: baseInvoices };
+
       const fullMonthly = pack.monthly;
       const sliced =
-        period === "month"
-          ? fullMonthly.slice(-1)
-          : period === "quarter"
-          ? fullMonthly.slice(-3)
-          : fullMonthly;
+        period === "month" ? fullMonthly.slice(-1) :
+        period === "quarter" ? fullMonthly.slice(-3) :
+        fullMonthly;
 
       setMonthly(sliced);
       setAllocation(pack.allocation);
@@ -260,9 +231,7 @@ export default function OwnerPage() {
   }, [monthly]);
 
   const filteredInvoices = invoices.filter((i) =>
-    [i.id, i.period, i.status].some((v) =>
-      v.toLowerCase().includes(query.toLowerCase())
-    )
+    [i.id, i.period, i.status].some((v) => v.toLowerCase().includes(query.toLowerCase()))
   );
 
   const risk = React.useMemo(() => {
@@ -282,25 +251,12 @@ export default function OwnerPage() {
     if (days <= 7) score += 20;
     else if (days <= 15) score += 10;
 
-    const level: "منخفض" | "متوسط" | "مرتفع" =
-      score >= 60 ? "مرتفع" : score >= 25 ? "متوسط" : "منخفض";
+    const level: "منخفض" | "متوسط" | "مرتفع" = score >= 60 ? "مرتفع" : score >= 25 ? "متوسط" : "منخفض";
 
     const signals = [
-      {
-        ok: overdueRatio === 0,
-        label: overdueRatio === 0 ? "لا توجد متأخرات" : "يوجد متأخرات",
-        value: `${Math.round(overdueRatio * 100)}%`,
-      },
-      {
-        ok: paySlope > 0,
-        label: paySlope > 0 ? "اتجاه سداد صاعد" : "اتجاه سداد هابط/ثابت",
-        value: paySlope.toFixed(1),
-      },
-      {
-        ok: days > 15,
-        label: days > 15 ? "الاستحقاق بعيد" : "استحقاق قريب",
-        value: isFinite(days) ? `${days} يوم` : "—",
-      },
+      { ok: overdueRatio === 0, label: overdueRatio === 0 ? "لا توجد متأخرات" : "يوجد متأخرات", value: `${Math.round(overdueRatio * 100)}%` },
+      { ok: paySlope > 0, label: paySlope > 0 ? "اتجاه سداد صاعد" : "اتجاه سداد هابط/ثابت", value: paySlope.toFixed(1) },
+      { ok: days > 15, label: days > 15 ? "الاستحقاق بعيد" : "استحقاق قريب", value: isFinite(days) ? `${days} يوم` : "—" },
     ];
 
     const actions = [
@@ -323,15 +279,11 @@ export default function OwnerPage() {
     router.push("/");
   }
 
-  // ==== الجديد: مرجع قسم بيانات المالك + قفزة من الهيدر ====
+  // مرجع القسم + قفز
   const ownerInfoRef = React.useRef<HTMLDivElement | null>(null);
   const jumpToOwnerInfo = React.useCallback(() => {
-    // تأكدينا إننا في تبويب النظرة العامة
     setTab("overview");
-    // انتظري ريندر بسيط ثم انزلي
-    requestAnimationFrame(() => {
-      ownerInfoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    requestAnimationFrame(() => ownerInfoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }, []);
 
   return (
@@ -345,15 +297,8 @@ export default function OwnerPage() {
         <Sidebar onLogout={handleLogout} />
 
         <main className="space-y-6">
-          {/* شريط علوي: فترة + بحث */}
-          <Toolbar
-            period={period}
-            onPeriodChange={setPeriod}
-            query={query}
-            onQueryChange={setQuery}
-          />
+          <Toolbar period={period} onPeriodChange={setPeriod} query={query} onQueryChange={setQuery} />
 
-          {/* 🔽 فلاتر متدرجة فوق الداشبورد تمامًا (مدينة → مبنى → شقة) */}
           <CascadingFilters
             city={city}
             building={building}
@@ -367,23 +312,22 @@ export default function OwnerPage() {
           <Tabs active={tab} onChange={setTab} />
 
           {tab === "overview" && (
-            <OverviewSection
-              allocation={allocation}
-              monthly={monthly}
-              totals={totals}
-              invoices={filteredInvoices}
-              routerPush={(href: string) => router.push(href)}
-              profile={profile}
-              onEditOpen={() => setEditOpen(true)}
-              ownerInfoRef={ownerInfoRef} // 👈 مرجع القسم هنا
-            />
+            <div ref={ownerInfoRef} id="owner-info">
+              <OverviewSection
+                allocation={allocation}
+                monthly={monthly}
+                totals={totals}
+                invoices={filteredInvoices}
+                routerPush={(href: string) => router.push(href)}
+                profile={profile}
+                onEditOpen={() => setEditOpen(true)}
+              />
+            </div>
           )}
 
           {tab === "usage" && <UsageSection monthly={monthly} />}
 
-          {tab === "risk" && (
-            <RiskSection risk={risk} monthly={monthly} invoices={invoices} />
-          )}
+          {tab === "risk" && <RiskSection risk={risk} monthly={monthly} invoices={invoices} />}
         </main>
       </div>
 
@@ -413,12 +357,11 @@ function Header({
 }: {
   onLogout: () => void;
   profile: any;
-  onGoOwnerInfo: () => void; // 👈 دالة القفز
+  onGoOwnerInfo: () => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const name = profile?.name || "المالك";
-  const initials =
-    name?.split(" ").map((p: string) => p[0]).join("").slice(0, 2) || "م";
+  const initials = name?.split(" ").map((p: string) => p[0]).join("").slice(0, 2) || "م";
 
   const ref = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
@@ -433,12 +376,12 @@ function Header({
   return (
     <header className="sticky top-0 z-50 border-b border-emerald-900/10 bg-white/80 backdrop-blur">
       <div className="mx-auto max-w-7xl h-14 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2" aria-label="الانتقال إلى الصفحة الرئيسية">
+        <Link href="/" className="flex items-center gap-2" aria-label="الصفحة الرئيسية">
           <Image src="/logo.png" alt="منصة بينة" width={28} height={28} className="rounded-full" />
           <span className="font-semibold text-emerald-900">عـقـارنـا</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6 text-sm" aria-label="التنقل الرئيسي">
+        <nav className="hidden md:flex items-center gap-6 text-sm" aria-label="التنقل">
           <Link href="/" className="hover:text-emerald-700">الرئيسية</Link>
           <Link href="/about" className="hover:text-emerald-700">عن المنصة</Link>
           <Link href="/owner" className="hover:text-emerald-700">لوحة المالك</Link>
@@ -457,7 +400,6 @@ function Header({
 
           {open && (
             <div className="absolute left-0 mt-2 w-56 rounded-xl border bg-white shadow-md overflow-hidden">
-              {/* 👇 بدلنا الرابط بزر ينزل لنفس الصفحة */}
               <button
                 onClick={() => {
                   setOpen(false);
@@ -500,30 +442,16 @@ function Sidebar({ onLogout }: { onLogout: () => void }) {
       </div>
 
       <nav className="p-2 text-sm">
-        <SideLink href="/owner" active icon={<LayoutDashboard className="size-4" />}>
-          اللوحة
-        </SideLink>
-        <SideLink href="/owner/satisfaction" icon={<FileText className="size-4" />}>
-          مؤشر الرضا
-        </SideLink>
-        <SideLink href="/payments" icon={<FileText className="size-4" />}>
-          الفواتير والرسوم
-        </SideLink>
-        <SideLink href="/reports/usage" icon={<BarChart3 className="size-4" />}>
-          التقارير والمؤشرات
-        </SideLink>
-        <SideLink href="/objections/id" icon={<AlertTriangle className="size-4" />}>
-          الاعتراضات
-        </SideLink>
+        <SideLink href="/owner" active icon={<LayoutDashboard className="size-4" />}>اللوحة</SideLink>
+        <SideLink href="/owner/satisfaction" icon={<FileText className="size-4" />}>مؤشر الرضا</SideLink>
+        <SideLink href="/payments" icon={<FileText className="size-4" />}>الفواتير والرسوم</SideLink>
+        <SideLink href="/reports/usage" icon={<BarChart3 className="size-4" />}>التقارير والمؤشرات</SideLink>
+        <SideLink href="/objections/id" icon={<AlertTriangle className="size-4" />}>الاعتراضات</SideLink>
       </nav>
 
       <div className="p-3 border-t border-emerald-900/10">
-        <button
-          onClick={onLogout}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-white"
-        >
-          <LogOut className="size-4" />
-          تسجيل الخروج
+        <button onClick={onLogout} className="w-full inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-white">
+          <LogOut className="size-4" /> تسجيل الخروج
         </button>
       </div>
     </aside>
@@ -538,41 +466,17 @@ function Footer() {
           <div>
             <h3 className="mb-3 font-semibold">نبذة عامة</h3>
             <ul className="space-y-2 text-sm/6">
-              <li>
-                <Link className="hover:underline" href="/about">
-                  الأسئلة
-                </Link>
-              </li>
-              <li>
-                <Link className="hover:underline" href="/about">
-                  الخصوصية والاستخدام
-                </Link>
-              </li>
-              <li>
-                <Link className="hover:underline" href="/about">
-                  الأحكام والشروط
-                </Link>
-              </li>
+              <li><Link className="hover:underline" href="/about">الأسئلة</Link></li>
+              <li><Link className="hover:underline" href="/about">الخصوصية والاستخدام</Link></li>
+              <li><Link className="hover:underline" href="/about">الأحكام والشروط</Link></li>
             </ul>
           </div>
           <div>
             <h3 className="mb-3 font-semibold">روابط مهمة</h3>
             <ul className="space-y-2 text-sm/6">
-              <li>
-                <a className="hover:underline" href="#">
-                  خريطة الموقع
-                </a>
-              </li>
-              <li>
-                <a className="hover:underline" href="#">
-                  الهيئة العامة للعقار
-                </a>
-              </li>
-              <li>
-                <a className="hover:underline" href="#">
-                  الربط مع الجهات الحكومية
-                </a>
-              </li>
+              <li><a className="hover:underline" href="#">خريطة الموقع</a></li>
+              <li><a className="hover:underline" href="#">الهيئة العامة للعقار</a></li>
+              <li><a className="hover:underline" href="#">الربط مع الجهات الحكومية</a></li>
             </ul>
           </div>
           <div>
@@ -586,24 +490,14 @@ function Footer() {
           <div>
             <h3 className="mb-3 font-semibold">مواقع التواصل الاجتماعي</h3>
             <div className="flex items-center gap-3">
-              <a aria-label="X" href="#" className="hover:underline">
-                X
-              </a>
-              <a aria-label="LinkedIn" href="#" className="hover:underline">
-                in
-              </a>
-              <a aria-label="YouTube" href="#" className="hover:underline">
-                YT
-              </a>
-              <a aria-label="Instagram" href="#" className="hover:underline">
-                IG
-              </a>
+              <a aria-label="X" href="#" className="hover:underline">X</a>
+              <a aria-label="LinkedIn" href="#" className="hover:underline">in</a>
+              <a aria-label="YouTube" href="#" className="hover:underline">YT</a>
+              <a aria-label="Instagram" href="#" className="hover:underline">IG</a>
             </div>
           </div>
         </div>
-        <div className="mt-8 pt-6 text-xs">
-          © {new Date().getFullYear()} منصة بينة. جميع الحقوق محفوظة.
-        </div>
+        <div className="mt-8 pt-6 text-xs">© {new Date().getFullYear()} منصة بينة. جميع الحقوق محفوظة.</div>
       </div>
     </footer>
   );
@@ -611,24 +505,12 @@ function Footer() {
 
 /* ================= Reusable UI ================= */
 function SideLink({
-  href,
-  icon,
-  children,
-  active = false,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  active?: boolean;
-}) {
+  href, icon, children, active = false,
+}: { href: string; icon: React.ReactNode; children: React.ReactNode; active?: boolean }) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-2 rounded-xl px-3 py-2 transition ${
-        active
-          ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-          : "hover:bg-emerald-50 border border-transparent"
-      }`}
+      className={`flex items-center gap-2 rounded-xl px-3 py-2 transition ${active ? "bg-emerald-100 text-emerald-900 border border-emerald-200" : "hover:bg-emerald-50 border border-transparent"}`}
     >
       <span className="text-emerald-700">{icon}</span>
       <span>{children}</span>
@@ -637,28 +519,14 @@ function SideLink({
 }
 
 function Toolbar({
-  period,
-  onPeriodChange,
-  query,
-  onQueryChange,
-}: {
-  period: Period;
-  onPeriodChange: (p: Period) => void;
-  query: string;
-  onQueryChange: (s: string) => void;
-}) {
+  period, onPeriodChange, query, onQueryChange,
+}: { period: Period; onPeriodChange: (p: Period) => void; query: string; onQueryChange: (s: string) => void; }) {
   return (
     <div className="rounded-2xl border border-emerald-900/10 bg-white/70 backdrop-blur shadow-sm p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-2" role="tablist" aria-label="تبديل الفترة">
-        <PeriodBtn active={period === "month"} onClick={() => onPeriodChange("month")}>
-          شهر
-        </PeriodBtn>
-        <PeriodBtn active={period === "quarter"} onClick={() => onPeriodChange("quarter")}>
-          ربع
-        </PeriodBtn>
-        <PeriodBtn active={period === "year"} onClick={() => onPeriodChange("year")}>
-          سنة
-        </PeriodBtn>
+        <PeriodBtn active={period === "month"} onClick={() => onPeriodChange("month")}>شهر</PeriodBtn>
+        <PeriodBtn active={period === "quarter"} onClick={() => onPeriodChange("quarter")}>ربع</PeriodBtn>
+        <PeriodBtn active={period === "year"} onClick={() => onPeriodChange("year")}>سنة</PeriodBtn>
       </div>
 
       <div className="flex items-center gap-2">
@@ -676,42 +544,19 @@ function Toolbar({
   );
 }
 
-function PeriodBtn({
-  active,
-  children,
-  onClick,
-}: {
-  active?: boolean;
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
+function PeriodBtn({ active, children, onClick }: { active?: boolean; children: React.ReactNode; onClick: () => void; }) {
   return (
-    <button
-      onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-sm transition ${
-        active ? "bg-emerald-600 text-white shadow" : "border hover:bg-emerald-50"
-      }`}
-    >
+    <button onClick={onClick} className={`rounded-full px-3 py-1.5 text-sm transition ${active ? "bg-emerald-600 text-white shadow" : "border hover:bg-emerald-50"}`}>
       {children}
     </button>
   );
 }
 
 function CascadingFilters({
-  city,
-  building,
-  unit,
-  onCity,
-  onBuilding,
-  onUnit,
-  ownerName,
+  city, building, unit, onCity, onBuilding, onUnit, ownerName,
 }: {
-  city: CityKey;
-  building: string;
-  unit: string;
-  onCity: (c: CityKey) => void;
-  onBuilding: (b: string) => void;
-  onUnit: (u: string) => void;
+  city: CityKey; building: string; unit: string;
+  onCity: (c: CityKey) => void; onBuilding: (b: string) => void; onUnit: (u: string) => void;
   ownerName: string;
 }) {
   const cityKeys = Object.keys(FILTER_OPTIONS) as CityKey[];
@@ -729,51 +574,24 @@ function CascadingFilters({
 
         <div className="flex items-center gap-2 flex-wrap">
           <label className="text-xs text-slate-600 flex items-center gap-1">
-            <MapPin className="size-4" />
-            المدينة
+            <MapPin className="size-4" /> المدينة
           </label>
-          <select
-            value={city}
-            onChange={(e) => onCity(e.target.value as CityKey)}
-            className="rounded-xl border px-3 py-1.5 text-sm"
-          >
-            {cityKeys.map((k) => (
-              <option key={k} value={k}>
-                {FILTER_OPTIONS[k].label}
-              </option>
-            ))}
+          <select value={city} onChange={(e) => onCity(e.target.value as CityKey)} className="rounded-xl border px-3 py-1.5 text-sm">
+            {cityKeys.map((k) => <option key={k} value={k}>{FILTER_OPTIONS[k].label}</option>)}
           </select>
 
           <label className="text-xs text-slate-600 flex items-center gap-1 ms-3">
-            <Building2 className="size-4" />
-            المبنى
+            <Building2 className="size-4" /> المبنى
           </label>
-          <select
-            value={building}
-            onChange={(e) => onBuilding(e.target.value)}
-            className="rounded-xl border px-3 py-1.5 text-sm"
-          >
-            {buildings.map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
+          <select value={building} onChange={(e) => onBuilding(e.target.value)} className="rounded-xl border px-3 py-1.5 text-sm">
+            {buildings.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
 
           <label className="text-xs text-slate-600 flex items-center gap-1 ms-3">
-            <Home className="size-4" />
-            الشقة
+            <Home className="size-4" /> الشقة
           </label>
-          <select
-            value={unit}
-            onChange={(e) => onUnit(e.target.value)}
-            className="rounded-xl border px-3 py-1.5 text-sm"
-          >
-            {units.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
+          <select value={unit} onChange={(e) => onUnit(e.target.value)} className="rounded-xl border px-3 py-1.5 text-sm">
+            {units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </div>
       </div>
@@ -781,46 +599,23 @@ function CascadingFilters({
   );
 }
 
-function GlowCard({
-  children,
-  glow = "emerald",
-}: {
-  children: React.ReactNode;
-  glow?: "emerald" | "amber";
-}) {
-  const ring =
-    glow === "amber" ? "from-amber-400/40 to-transparent" : "from-emerald-400/40 to-transparent";
+function GlowCard({ children, glow = "emerald" }: { children: React.ReactNode; glow?: "emerald" | "amber"; }) {
+  const ring = glow === "amber" ? "from-amber-400/40 to-transparent" : "from-emerald-400/40 to-transparent";
   return (
     <div className="relative rounded-2xl border border-emerald-900/10 bg-white/70 backdrop-blur p-4 overflow-hidden">
-      <div
-        className={`pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-br ${ring} opacity-40 blur-2xl`}
-      />
+      <div className={`pointer-events-none absolute -inset-1 rounded-2xl bg-gradient-to-br ${ring} opacity-40 blur-2xl`} />
       <div className="relative">{children}</div>
     </div>
   );
 }
 
-function KPI({
-  icon,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  sub?: string;
-}) {
+function KPI({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string | number; sub?: string; }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="grid size-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
-        {icon}
-      </div>
+      <div className="grid size-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700">{icon}</div>
       <div>
         <div className="text-xs text-slate-600">{label}</div>
-        <div className="text-lg font-semibold" dir="ltr">
-          {value}
-        </div>
+        <div className="text-lg font-semibold" dir="ltr">{value}</div>
         {sub && <div className="text-xs text-slate-500 mt-0.5">{sub}</div>}
       </div>
     </div>
@@ -831,9 +626,7 @@ function MiniSpark({ data }: { data: { k: string; v: number }[] }) {
   return (
     <div className="mt-3 h-[56px]">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <Line dataKey="v" type="monotone" stroke="#10b981" strokeWidth={2} dot={false} />
-        </LineChart>
+        <LineChart data={data}><Line dataKey="v" type="monotone" stroke="#10b981" strokeWidth={2} dot={false} /></LineChart>
       </ResponsiveContainer>
     </div>
   );
@@ -843,49 +636,27 @@ function MiniArea({ data }: { data: { k: string; v: number }[] }) {
   return (
     <div className="mt-3 h-[56px]">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data}>
-          <Area dataKey="v" type="monotone" stroke="#0ea5e9" fill="#0ea5e933" strokeWidth={2} />
-        </AreaChart>
+        <AreaChart data={data}><Area dataKey="v" type="monotone" stroke="#0ea5e9" fill="#0ea5e933" strokeWidth={2} /></AreaChart>
       </ResponsiveContainer>
     </div>
   );
 }
 
-function MiniLine({
-  data,
-  stroke = "#f59e0b",
-}: {
-  data: { k: string; v: number }[];
-  stroke?: string;
-}) {
+function MiniLine({ data, stroke = "#f59e0b" }: { data: { k: string; v: number }[]; stroke?: string; }) {
   return (
     <div className="mt-3 h-[56px]">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <Line dataKey="v" type="monotone" stroke={stroke} strokeWidth={2} dot={false} />
-        </LineChart>
+        <LineChart data={data}><Line dataKey="v" type="monotone" stroke={stroke} strokeWidth={2} dot={false} /></LineChart>
       </ResponsiveContainer>
     </div>
   );
 }
 
 function Tabs({ active, onChange }: { active: TabKey; onChange: (t: TabKey) => void }) {
-  const Item = ({
-    k,
-    label,
-    icon,
-  }: {
-    k: TabKey;
-    label: string;
-    icon: React.ReactNode;
-  }) => (
+  const Item = ({ k, label, icon }: { k: TabKey; label: string; icon: React.ReactNode }) => (
     <button
-      role="tab"
-      aria-selected={active === k}
-      onClick={() => onChange(k)}
-      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm border transition ${
-        active === k ? "bg-emerald-600 text-white border-emerald-600" : "hover:bg-emerald-50"
-      }`}
+      role="tab" aria-selected={active === k} onClick={() => onChange(k)}
+      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm border transition ${active === k ? "bg-emerald-600 text-white border-emerald-600" : "hover:bg-emerald-50"}`}
     >
       {icon} {label}
     </button>
@@ -901,16 +672,8 @@ function Tabs({ active, onChange }: { active: TabKey; onChange: (t: TabKey) => v
 }
 
 function GlassCard({
-  title,
-  subtitle,
-  right,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  right?: React.ReactNode;
-  children: React.ReactNode;
-}) {
+  title, subtitle, right, children,
+}: { title: string; subtitle?: string; right?: React.ReactNode; children: React.ReactNode; }) {
   return (
     <section className="rounded-2xl border border-emerald-900/10 bg-white/70 backdrop-blur shadow-sm overflow-hidden">
       <div className="p-5 border-b border-emerald-900/10 flex items-center justify-between">
@@ -935,82 +698,45 @@ function Info({ label, value, mono = false }: { label: string; value: string; mo
 }
 
 function StatusChip({ status }: { status: Invoice["status"] }) {
-  const cls =
-    status === "مدفوع" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800";
+  const cls = status === "مدفوع" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800";
   return <span className={`rounded-full px-2 py-0.5 text-xs ${cls}`}>{status}</span>;
 }
 
 /* ================= Sections ================= */
 function OverviewSection({
-  allocation,
-  monthly,
-  totals,
-  invoices,
-  routerPush,
-  profile,
-  onEditOpen,
-  ownerInfoRef, // 👈 مرجع نستقبله هنا
+  allocation, monthly, totals, invoices, routerPush, profile, onEditOpen,
 }: {
   allocation: { name: string; value: number }[];
   monthly: MonthlyRow[];
-  totals: {
-    charges: number;
-    paid: number;
-    overdue: number;
-    rate: number;
-    spark: { k: string; v: number }[];
-  };
+  totals: { charges: number; paid: number; overdue: number; rate: number; spark: { k: string; v: number }[]; };
   invoices: Invoice[];
   routerPush: (href: string) => void;
   profile: any;
   onEditOpen: () => void;
-  ownerInfoRef: React.RefObject<HTMLDivElement>;
 }) {
   return (
     <>
       {/* KPIs */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <GlowCard>
-          <KPI
-            icon={<CircleDollarSign className="size-5" />}
-            label="إجمالي المستحقات"
-            value={fmt(totals.charges)}
-            sub="للفترة المحددة"
-          />
+          <KPI icon={<CircleDollarSign className="size-5" />} label="إجمالي المستحقات" value={fmt(totals.charges)} sub="للفترة المحددة" />
           <MiniSpark data={totals.spark} />
         </GlowCard>
 
         <GlowCard>
-          <KPI
-            icon={<Receipt className="size-5" />}
-            label="مدفوع"
-            value={fmt(totals.paid)}
-            sub={`نسبة السداد ${totals.rate}%`}
-          />
+          <KPI icon={<Receipt className="size-5" />} label="مدفوع" value={fmt(totals.paid)} sub={`نسبة السداد ${totals.rate}%`} />
           <MiniArea data={monthly.map((m) => ({ k: m.k, v: m.paid }))} />
         </GlowCard>
 
         <GlowCard glow="amber">
-          <KPI
-            icon={<AlertTriangle className="size-5" />}
-            label="متأخرات"
-            value={fmt(totals.overdue)}
-            sub="المبالغ غير المسددة"
-          />
+          <KPI icon={<AlertTriangle className="size-5" />} label="متأخرات" value={fmt(totals.overdue)} sub="المبالغ غير المسددة" />
           <MiniLine data={monthly.map((m) => ({ k: m.k, v: m.overdue }))} stroke="#f59e0b" />
         </GlowCard>
 
         <GlowCard>
           <div className="flex items-start justify-between">
-            <KPI
-              icon={<FileText className="size-5" />}
-              label="فواتير مفتوحة"
-              value={invoices.filter((i) => i.status !== "مدفوع").length}
-              sub="بحاجة لاتخاذ إجراء"
-            />
-            <button className="rounded-full border px-3 py-1 text-xs hover:bg-emerald-50">
-              إدارة
-            </button>
+            <KPI icon={<FileText className="size-5" />} label="فواتير مفتوحة" value={invoices.filter((i) => i.status !== "مدفوع").length} sub="بحاجة لاتخاذ إجراء" />
+            <button className="rounded-full border px-3 py-1 text-xs hover:bg-emerald-50">إدارة</button>
           </div>
           <div className="mt-2 text-xs text-slate-500">
             أقرب استحقاق: <span dir="ltr">{invoices[0]?.due || "—"}</span>
@@ -1019,24 +745,12 @@ function OverviewSection({
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <GlassCard
-          title="أين ذهبت أموالك؟"
-          subtitle={`إجمالي: ${fmt(allocation.reduce((s, x) => s + x.value, 0))}`}
-        >
+        <GlassCard title="أين ذهبت أموالك؟" subtitle={`إجمالي: ${fmt(allocation.reduce((s, x) => s + x.value, 0))}`}>
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
-                  data={allocation}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={70}
-                  outerRadius={110}
-                  paddingAngle={3}
-                >
-                  {allocation.map((e, i) => (
-                    <Cell key={e.name} fill={COLORS[i % COLORS.length]} />
-                  ))}
+                <Pie data={allocation} dataKey="value" nameKey="name" innerRadius={70} outerRadius={110} paddingAngle={3}>
+                  {allocation.map((e, i) => (<Cell key={e.name} fill={COLORS[i % COLORS.length]} />))}
                 </Pie>
                 <Tooltip formatter={(v) => fmt(Number(v))} />
                 <Legend />
@@ -1065,70 +779,42 @@ function OverviewSection({
       <section className="grid grid-cols-1 xl:grid-cols-[1.4fr_.6fr] gap-6">
         <GlassCard
           title="الفواتير"
-          right={
-            <Link href="/owner/fees" className="text-sm text-emerald-700 hover:underline">
-              عرض الكل
-            </Link>
-          }
+          right={<Link href="/owner/fees" className="text-sm text-emerald-700 hover:underline">عرض الكل</Link>}
         >
           <div className="overflow-x-auto">
             <InvoicesTable invoices={invoices} routerPush={routerPush} />
           </div>
         </GlassCard>
 
-        {/* 👇 هذا هو القسم الهدف: عليه ref + id لسهولة الاختبار */}
-        <div ref={ownerInfoRef} id="owner-info">
-          <GlassCard
-            title="بيانات المالك"
-            right={
-              <button
-                onClick={onEditOpen}
-                className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs hover:bg-emerald-50"
-              >
-                <Pencil className="size-4" /> تعديل
-              </button>
-            }
-          >
-            <div className="grid grid-cols-1 gap-3 text-sm">
-              <Info label="الاسم الكامل" value={profile.name} />
-              <Info label="رقم الهوية" value={profile.nationalId} mono />
-              <Info label="الجوال" value={profile.phone} mono />
-              <Info label="البريد" value={profile.email} />
-              <Info label="المدينة" value={profile.city} />
-              <Info
-                label="المبنى/الوحدة"
-                value={`${profile.building} — ${profile.unit}`}
-              />
-            </div>
+        {/* قسم بيانات المالك */}
+        <GlassCard
+          title="بيانات المالك"
+          right={
+            <button onClick={onEditOpen} className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs hover:bg-emerald-50">
+              <Pencil className="size-4" /> تعديل
+            </button>
+          }
+        >
+          <div className="grid grid-cols-1 gap-3 text-sm">
+            <Info label="الاسم الكامل" value={profile.name} />
+            <Info label="رقم الهوية" value={profile.nationalId} mono />
+            <Info label="الجوال" value={profile.phone} mono />
+            <Info label="البريد" value={profile.email} />
+            <Info label="المدينة" value={profile.city} />
+            <Info label="المبنى/الوحدة" value={`${profile.building} — ${profile.unit}`} />
+          </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                onClick={onEditOpen}
-                className="rounded-xl border px-3 py-2 text-center text-sm hover:bg-white"
-              >
-                تعديل البيانات
-              </button>
-              <Link
-                href="/owner/preferences"
-                className="rounded-xl border px-3 py-2 text-center text-sm hover:bg-white"
-              >
-                الإشعارات
-              </Link>
-            </div>
-          </GlassCard>
-        </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button onClick={onEditOpen} className="rounded-xl border px-3 py-2 text-center text-sm hover:bg-white">تعديل البيانات</button>
+            <Link href="/owner/preferences" className="rounded-xl border px-3 py-2 text-center text-sm hover:bg-white">الإشعارات</Link>
+          </div>
+        </GlassCard>
       </section>
     </>
   );
 }
 
-function InvoicesTable({
-  invoices,
-  routerPush,
-}: {
-  invoices: Invoice[];
-  routerPush: (href: string) => void;
-}) {
+function InvoicesTable({ invoices, routerPush }: { invoices: Invoice[]; routerPush: (href: string) => void; }) {
   return (
     <table className="w-full text-sm">
       <thead className="bg-emerald-50/60 text-emerald-900">
@@ -1144,19 +830,11 @@ function InvoicesTable({
       <tbody className="divide-y">
         {invoices.map((inv) => (
           <tr key={inv.id} className="hover:bg-emerald-50/30 transition">
-            <td className="p-3 font-mono" dir="ltr">
-              {inv.id}
-            </td>
+            <td className="p-3 font-mono" dir="ltr">{inv.id}</td>
             <td className="p-3">{inv.period}</td>
-            <td className="p-3" dir="ltr">
-              {fmt(inv.total)}
-            </td>
-            <td className="p-3" dir="ltr">
-              {inv.due}
-            </td>
-            <td className="p-3">
-              <StatusChip status={inv.status} />
-            </td>
+            <td className="p-3" dir="ltr">{fmt(inv.total)}</td>
+            <td className="p-3" dir="ltr">{inv.due}</td>
+            <td className="p-3"><StatusChip status={inv.status} /></td>
             <td className="p-3">
               <div className="flex items-center gap-2">
                 {inv.status !== "مدفوع" && (
@@ -1167,10 +845,7 @@ function InvoicesTable({
                     سداد
                   </button>
                 )}
-                <Link
-                  href={`/owner/fees/${inv.id}`}
-                  className="rounded-lg border px-3 py-1.5 hover:bg-white"
-                >
+                <Link href={`/owner/fees/${inv.id}`} className="rounded-lg border px-3 py-1.5 hover:bg-white">
                   تفاصيل
                 </Link>
               </div>
@@ -1184,10 +859,7 @@ function InvoicesTable({
 
 function UsageSection({ monthly }: { monthly: MonthlyRow[] }) {
   const last12 = monthly.slice(-12);
-  const utilization = last12.map((m) => ({
-    k: m.k,
-    rate: Math.round((100 * m.paid) / Math.max(1, m.charges)),
-  }));
+  const utilization = last12.map((m) => ({ k: m.k, rate: Math.round((100 * m.paid) / Math.max(1, m.charges)) }));
   const arrears = last12.map((m) => ({ k: m.k, amt: m.overdue }));
 
   return (
@@ -1201,14 +873,7 @@ function UsageSection({ monthly }: { monthly: MonthlyRow[] }) {
               <YAxis domain={[0, 110]} />
               <Tooltip formatter={(v) => `${v}%`} />
               <Legend />
-              <Line
-                dataKey="rate"
-                name="نسبة السداد"
-                type="monotone"
-                stroke="#10b981"
-                strokeWidth={2}
-                dot
-              />
+              <Line dataKey="rate" name="نسبة السداد" type="monotone" stroke="#10b981" strokeWidth={2} dot />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -1233,25 +898,15 @@ function UsageSection({ monthly }: { monthly: MonthlyRow[] }) {
         <ul className="text-sm list-disc ps-5 space-y-1">
           <li>
             متوسط نسبة السداد آخر 6 أشهر:{" "}
-            {Math.round(
-              utilization.slice(-6).reduce((a, b) => a + b.rate, 0) /
-                Math.max(1, utilization.slice(-6).length)
-            )}
-            %
+            {Math.round(utilization.slice(-6).reduce((a, b) => a + b.rate, 0) / Math.max(1, utilization.slice(-6).length))}%
           </li>
           <li>
             أعلى شهر التزام:{" "}
-            {utilization.reduce(
-              (best, cur) => (cur.rate > (best?.rate ?? -1) ? cur : best),
-              undefined as any
-            )?.k || "—"}
+            {utilization.reduce((best, cur) => (cur.rate > (best?.rate ?? -1) ? cur : best), undefined as any)?.k || "—"}
           </li>
           <li>
             أعلى متأخرات:{" "}
-            {arrears.reduce(
-              (best, cur) => (cur.amt > (best?.amt ?? -1) ? cur : best),
-              undefined as any
-            )?.k || "—"}
+            {arrears.reduce((best, cur) => (cur.amt > (best?.amt ?? -1) ? cur : best), undefined as any)?.k || "—"}
           </li>
         </ul>
       </GlassCard>
@@ -1261,13 +916,7 @@ function UsageSection({ monthly }: { monthly: MonthlyRow[] }) {
 
 function RiskBadge({ ok, label, value }: { ok: boolean; label: string; value: string }) {
   return (
-    <div
-      className={`rounded-xl border px-3 py-2 text-sm inline-flex items-center gap-2 ${
-        ok
-          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-          : "border-amber-200 bg-amber-50 text-amber-900"
-      }`}
-    >
+    <div className={`rounded-xl border px-3 py-2 text-sm inline-flex items-center gap-2 ${ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
       <span className="font-medium">{label}</span>
       <span className="opacity-70">({value})</span>
     </div>
@@ -1275,16 +924,9 @@ function RiskBadge({ ok, label, value }: { ok: boolean; label: string; value: st
 }
 
 function RiskSection({
-  risk,
-  monthly,
-  invoices,
+  risk, monthly, invoices,
 }: {
-  risk: {
-    score: number;
-    level: "منخفض" | "متوسط" | "مرتفع";
-    signals: { ok: boolean; label: string; value: string }[];
-    actions: string[];
-  };
+  risk: { score: number; level: "منخفض" | "متوسط" | "مرتفع"; signals: { ok: boolean; label: string; value: string }[]; actions: string[]; };
   monthly: MonthlyRow[];
   invoices: Invoice[];
 }) {
@@ -1308,9 +950,7 @@ function RiskSection({
             <ShieldAlert className="size-4" /> مستوى الخطر: {risk.level}
           </span>
 
-          {risk.signals.map((s, i) => (
-            <RiskBadge key={i} ok={s.ok} label={s.label} value={s.value} />
-          ))}
+          {risk.signals.map((s, i) => <RiskBadge key={i} ok={s.ok} label={s.label} value={s.value} />)}
         </div>
       </GlassCard>
 
@@ -1318,9 +958,7 @@ function RiskSection({
         <GlassCard title="اتجاهات تدعم التقييم">
           <div className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={monthly.slice(-6).map((m) => ({ k: m.k, paid: m.paid, overdue: m.overdue }))}
-              >
+              <LineChart data={monthly.slice(-6).map((m) => ({ k: m.k, paid: m.paid, overdue: m.overdue }))}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="k" />
                 <YAxis />
@@ -1335,9 +973,7 @@ function RiskSection({
 
         <GlassCard title="إشعارات ومؤشرات" subtitle="أتمتة إجراءات استباقية">
           <ul className="text-sm space-y-2">
-            {risk.actions.length === 0 && (
-              <li className="text-slate-500">لا يوجد إجراءات فورية حالياً.</li>
-            )}
+            {risk.actions.length === 0 && <li className="text-slate-500">لا يوجد إجراءات فورية حالياً.</li>}
             {risk.actions.map((a, i) => (
               <li key={i} className="flex items-start gap-2">
                 <InfoIcon className="size-4 mt-1 text-slate-500" />
@@ -1364,24 +1000,14 @@ function RiskSection({
             <tbody className="divide-y">
               {invoices
                 .filter((i) => i.status !== "مدفوع")
-                .sort(
-                  (a, b) => new Date(a.due).getTime() - new Date(b.due).getTime()
-                )
+                .sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime())
                 .map((inv) => (
                   <tr key={inv.id} className="hover:bg-amber-50/50">
-                    <td className="p-3 font-mono" dir="ltr">
-                      {inv.id}
-                    </td>
+                    <td className="p-3 font-mono" dir="ltr">{inv.id}</td>
                     <td className="p-3">{inv.period}</td>
-                    <td className="p-3" dir="ltr">
-                      {fmt(inv.total)}
-                    </td>
-                    <td className="p-3" dir="ltr">
-                      {inv.due}
-                    </td>
-                    <td className="p-3">
-                      <StatusChip status={inv.status} />
-                    </td>
+                    <td className="p-3" dir="ltr">{fmt(inv.total)}</td>
+                    <td className="p-3" dir="ltr">{inv.due}</td>
+                    <td className="p-3"><StatusChip status={inv.status} /></td>
                   </tr>
                 ))}
             </tbody>
@@ -1393,15 +1019,7 @@ function RiskSection({
 }
 
 /* ================= Modals & Helpers ================= */
-function EditModal({
-  initial,
-  onClose,
-  onSave,
-}: {
-  initial: any;
-  onClose: () => void;
-  onSave: (p: any) => void;
-}) {
+function EditModal({ initial, onClose, onSave }: { initial: any; onClose: () => void; onSave: (p: any) => void; }) {
   const [form, setForm] = React.useState(initial);
   function set<K extends keyof typeof form>(k: K, v: any) {
     setForm((f: any) => ({ ...f, [k]: v }));
@@ -1418,39 +1036,18 @@ function EditModal({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <Field label="الاسم الكامل">
-            <input value={form.name} onChange={(e) => set("name", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="رقم الهوية">
-            <input value={form.nationalId} onChange={(e) => set("nationalId", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="الجوال">
-            <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="البريد">
-            <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="المدينة">
-            <input value={form.city} onChange={(e) => set("city", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="المبنى">
-            <input value={form.building} onChange={(e) => set("building", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="الوحدة">
-            <input value={form.unit} onChange={(e) => set("unit", e.target.value)} className={inputCls} />
-          </Field>
+          <Field label="الاسم الكامل"><input value={form.name} onChange={(e) => set("name", e.target.value)} className={inputCls} /></Field>
+          <Field label="رقم الهوية"><input value={form.nationalId} onChange={(e) => set("nationalId", e.target.value)} className={inputCls} /></Field>
+          <Field label="الجوال"><input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} /></Field>
+          <Field label="البريد"><input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} className={inputCls} /></Field>
+          <Field label="المدينة"><input value={form.city} onChange={(e) => set("city", e.target.value)} className={inputCls} /></Field>
+          <Field label="المبنى"><input value={form.building} onChange={(e) => set("building", e.target.value)} className={inputCls} /></Field>
+          <Field label="الوحدة"><input value={form.unit} onChange={(e) => set("unit", e.target.value)} className={inputCls} /></Field>
         </div>
 
         <div className="mt-5 flex items-center justify-end gap-2">
-          <button onClick={onClose} className="rounded-xl border px-4 py-2 text-sm">
-            إلغاء
-          </button>
-          <button
-            onClick={() => onSave(form)}
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700"
-          >
-            حفظ
-          </button>
+          <button onClick={onClose} className="rounded-xl border px-4 py-2 text-sm">إلغاء</button>
+          <button onClick={() => onSave(form)} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700">حفظ</button>
         </div>
       </div>
     </div>

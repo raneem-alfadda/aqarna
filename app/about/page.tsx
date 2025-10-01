@@ -169,17 +169,7 @@ export default function AboutPage() {
         </svg>
       </section>
 
-      {/* Stats */}
-      <section className="bg-white py-10 sm:py-12">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StatCard label="رضا الملاك" suffix="%" value={s1.value} countRef={s1.ref} icon={<CheckCircle2 className="size-4" />} />
-            <StatCard label="تحصيل الرسوم" suffix="%" value={s2.value} countRef={s2.ref} icon={<CreditCard className="size-4" />} />
-            <StatCard label="نطاق تغطية" value={s3.value} suffix="" countRef={s3.ref} icon={<ShieldCheck className="size-4" />} />
-            <StatCard label="اعتراض مُدار" value={s4.value} suffix="" countRef={s4.ref} icon={<Settings2 className="size-4" />} />
-          </div>
-        </div>
-      </section>
+
 
       {/* Features (مميّزات سريعة) */}
       <section className="py-10 sm:py-14 bg-gradient-to-b from-white via-emerald-50/40 to-white">
