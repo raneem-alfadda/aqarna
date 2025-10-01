@@ -19,32 +19,11 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-/* ========== Typewriter Hook ========== */
-function useTypewriter(text: string = "", speed = 22, start = false) {
-  const [out, setOut] = React.useState("");
-  React.useEffect(() => {
-    if (!start || !text) {
-      setOut("");
-      return;
-    }
-    setOut("");
-    let i = 0;
-    const id = setInterval(() => {
-      setOut((prev) => prev + text[i]);
-      i++;
-      if (i >= text.length) clearInterval(id);
-    }, speed);
-    return () => clearInterval(id);
-  }, [text, speed, start]);
-  return out;
-}
-
 export default function HomePage() {
   const router = useRouter();
   const [typeOpen, setTypeOpen] = React.useState(false);
   const [userType, setUserType] = React.useState<string | null>(null);
   const [propertyType, setPropertyType] = React.useState<string | null>(null);
-  const [heroReady, setHeroReady] = React.useState(false);
 
   const DESCRIPTION =
     "حل رقمي لإدارة رسوم اتحادات الملاك، يسهّل السداد والاعتراض، ويدعم الشفافية وتقليل النزاعات.";
@@ -52,9 +31,6 @@ export default function HomePage() {
     () => DESCRIPTION.replace(/يونيفاد/gi, "").trim(),
     []
   );
-
-  const typed = useTypewriter(cleanDescription, 20, heroReady);
-  const typedSafe = typed ?? "";
 
   const titleControls = useAnimation();
   React.useEffect(() => {
@@ -64,7 +40,6 @@ export default function HomePage() {
         y: 0,
         transition: { duration: 0.6 },
       });
-      setTimeout(() => setHeroReady(true), 200);
     })();
   }, [titleControls]);
 
@@ -189,12 +164,9 @@ export default function HomePage() {
                   <span className="text-emerald-200 drop-shadow-sm">عـقـارنـا</span>
                 </motion.h1>
 
-                <p className="mt-4 max-w-xl leading-8 text-emerald-50/90 min-h-[3.5rem]">
-                  {typedSafe}
-                  {!heroReady && <span>&nbsp;</span>}
-                  {heroReady && typedSafe.length < cleanDescription.length && (
-                    <span className="inline-block w-2 h-5 align-[-2px] bg-emerald-200/90 animate-pulse ms-1" />
-                  )}
+                {/* ✅ الوصف ثابت بدون أي كتابة تدريجية */}
+                <p className="mt-4 max-w-xl leading-8 text-emerald-50/90">
+                  {cleanDescription}
                 </p>
 
                 <div id="cta" className="mt-8 flex items-center gap-3">
