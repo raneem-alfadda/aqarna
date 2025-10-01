@@ -25,7 +25,7 @@ function useCountUp(
 ) {
   const [value, setValue] = React.useState<number>(start);
   const ref = React.useRef<HTMLSpanElement | null>(null);
-  const inView = useInView(ref, { margin: rootMargin, once });
+const inView = useInView(ref, { amount: 0.2, once: true }); // 20% من العنصر ظاهر
 
   const rafId = React.useRef<number | null>(null);
 
